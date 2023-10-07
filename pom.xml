@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>org.parkerici</groupId>
   <artifactId>datalog-json-parser</artifactId>
   <version>0.2.2</version>
   <name>datalog-json-parser</name>
-
   <dependencies>
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.9.0</version>
+      <version>1.11.1</version>
     </dependency>
   </dependencies>
   <build>
@@ -32,7 +30,7 @@
         <artifactId>clojure-maven-plugin</artifactId>
         <version>1.7.1</version>
         <configuration>
-            <temporaryOutputDirectory>true</temporaryOutputDirectory>
+          <temporaryOutputDirectory>true</temporaryOutputDirectory>
         </configuration>
         <executions>
           <execution>
