@@ -1,0 +1,8 @@
+{
+  ":find" : ["?hugo", "?hgvsp"],
+  ":in": ["$", ["?hugo", "..."]],
+  ":where" :
+    [["or",
+      ["?e", ":gene/hugo", "?hugo"],
+      ["?e", ":variant/HGVSp", "?hgvsp"]]]
+}
