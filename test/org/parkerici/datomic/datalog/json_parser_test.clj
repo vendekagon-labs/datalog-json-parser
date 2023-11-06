@@ -39,7 +39,7 @@
 
 (deftest exemplar-rule-tests
   (doseq [{:keys [file json edn]} (json+edn-pairs "-rules")]
-    (testing (str "parsing:" file)
+    (testing (str "parsing: " file)
       (is (= edn (sut/parse-rules json))
           (let [[json-only edn-only] (data/diff (sut/parse-rules json) edn)]
             {:json-q-diff (with-out-str (pp/pprint json-only))
