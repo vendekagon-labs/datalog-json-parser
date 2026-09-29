@@ -84,10 +84,6 @@
 (s/def ::where-expr-whitelist
   (into #{} (keys where-expressions)))
 
-(s/def ::expr-str
-  (s/and string? (s/or :where ::where-expr-whitelist
-                       :find ::find-expr-whitelist)))
-
 (s/def ::var
   (s/and symbol?
          #(.startsWith (str %) "?")))
@@ -127,14 +123,14 @@
          :clauses (s/+ ::clause)))
 
 (defn unqualified-symbol-str?
+  "True if v coerces to a symbol (as by clojure.core/symbol) without a namespace."
   [v]
-  (let [v-sym (try
-                (symbol v)
-                (catch Exception e
-                  ::s/invalid))]
-    (when-not (= v-sym ::s/invalid)
-      (and (symbol? v-sym)
-           (not (namespace v-sym))))))
+  (cond
+    (string? v) (nil? (namespace (symbol v)))
+    (symbol? v) (nil? (namespace v))
+    (keyword? v) (nil? (namespace v))
+    ;; vars coerce to qualified symbols; anything else doesn't coerce
+    :else false))
 
 
 (s/def ::rule-name unqualified-symbol-str?)
@@ -179,16 +175,18 @@
    [#"\%" coerce-symbol]
    [#"\.\.\." coerce-symbol]])
 
-(defn str-parse [s]
-  (let [matches (keep (fn [[regex parse-fn]]
-                        (when (re-matches regex s)
-                          (parse-fn s)))
-                      q-lex)]
-    (if (seq matches)
-      (first matches)
-      s)))
+(def ^:private q-lex-first-chars
+  "Every q-lex regex requires one of these as the first character."
+  #{\? \: \$ \_ \% \.})
 
-(str-parse "_yeah")
+(defn str-parse [^String s]
+  (or (when (and (pos? (.length s))
+                 (q-lex-first-chars (.charAt s 0)))
+        (some (fn [[regex parse-fn]]
+                (when (re-matches regex s)
+                  (parse-fn s)))
+              q-lex))
+      s))
 
 
 (defn resolve-aggregate [aggregate]
@@ -249,19 +247,24 @@
 
 (declare resolve-where-clauses)
 
+(defn- resolve-conformed-alternative-clause
+  "Resolves clause, given its value as conformed to ::alternative-clause."
+  [clause conformed]
+  (let [{:keys [clause-type vars clauses]} conformed
+        clause-symbol (get clause-types clause-type)
+        resolved-clauses (resolve-where-clauses
+                           (map (comp vec (partial s/unform ::clause)) clauses))]
+    (vec (if vars
+           (concat [clause-symbol (second clause)] resolved-clauses)
+           (concat [clause-symbol] resolved-clauses)))))
+
 (defn resolve-alternative-clause [clause]
   (let [conformed (s/conform ::alternative-clause clause)]
     (if (= conformed ::s/invalid)
       (throw (ex-info "[or,not,and]?(-join) clause of invalid form."
                {:clause clause
                 :explain-data (s/explain-data ::alternative-clause clause)}))
-      (let [{:keys [clause-type vars clauses]} conformed
-            clause-symbol (get clause-types clause-type)
-            resolved-clauses (resolve-where-clauses
-                               (map (comp vec (partial s/unform ::clause)) clauses))]
-        (vec (if vars
-               (concat [clause-symbol (second clause)] resolved-clauses)
-               (concat [clause-symbol] resolved-clauses)))))))
+      (resolve-conformed-alternative-clause clause conformed))))
 
 (defn resolve-rule-expr [[rule-name & rule-args]]
   (cons (symbol rule-name) rule-args))
@@ -269,11 +272,14 @@
 
 (defn resolve-where-clauses [where-clauses]
   (mapv (fn [clause]
-          (cond
-            (s/valid? ::alternative-clause clause) (resolve-alternative-clause clause)
-            (s/valid? ::expression-clause clause) (resolve-where-expression clause)
-            (s/valid? ::rule-expr clause) (resolve-rule-expr clause)
-            :else clause))
+          ;; conform once rather than validating and then conforming again,
+          ;; which repeats the work at every level of nested or/not/and
+          (let [alternative (s/conform ::alternative-clause clause)]
+            (cond
+              (not= alternative ::s/invalid) (resolve-conformed-alternative-clause clause alternative)
+              (s/valid? ::expression-clause clause) (resolve-where-expression clause)
+              (s/valid? ::rule-expr clause) (resolve-rule-expr clause)
+              :else clause)))
         where-clauses))
 
 (defn parse-json-tree
@@ -291,11 +297,9 @@
 (defn parse-q
   [q-form]
   (let [as-edn (parse-json-tree q-form)
-        in-clause (:in as-edn)
-        where-expressions (seq (filter (partial s/valid? ::clause) (:where as-edn)))
-        resolvable-find-elems (seq (filter (partial s/valid? ::resolvable-find-elem) (:find as-edn)))]
+        where-expressions (some (partial s/valid? ::clause) (:where as-edn))
+        resolvable-find-elems (some (partial s/valid? ::resolvable-find-elem) (:find as-edn))]
     (cond-> as-edn
-       in-clause (assoc :in in-clause)
        where-expressions (assoc :where (resolve-where-clauses (:where as-edn)))
        resolvable-find-elems (assoc :find (resolve-find-elems (:find as-edn))))))
 
