@@ -76,10 +76,14 @@
 
 (deftest whitespace-in-symbols-and-keywords
   (doseq [s [":a b" "?a b" ":a\tb" "$a b"]]
-    (let [ex (try (sut/str-parse s) nil
-                  (catch clojure.lang.ExceptionInfo e e))]
-      (is (some? ex) (pr-str s))
-      (is (= s (::sut/bad-string (ex-data ex)))))))
+    (let [ex (atom nil)
+          out (with-out-str
+                (try (sut/str-parse s)
+                     (catch clojure.lang.ExceptionInfo e (reset! ex e))))]
+      (is (some? @ex) (pr-str s))
+      (is (= s (::sut/bad-string (ex-data @ex))))
+      (is (str/includes? (ex-message @ex) "whitespace"))
+      (is (= "" out) "errors are thrown, not printed"))))
 
 (deftest keywords-must-read-exactly
   (doseq [s ["::foo" "::a/b" ":a,b" ":a;b" ":a(b)" ":a[b]" ":a\"b" ":a/b/"]]

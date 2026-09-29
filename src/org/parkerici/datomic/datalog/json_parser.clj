@@ -171,7 +171,6 @@
 (defn throw-if-whitespace!
   [s]
   (when-let [whitespace (re-find #"\s" s)]
-    (println "Found whitespace")
     (throw (ex-info (str "Invalid query: symbol or keyword string '"
                          s
                          "' contained whitespace.")
