@@ -170,7 +170,16 @@
 
 (defn coerce-kw [s]
   (throw-if-whitespace! s)
-  (read-string s))
+  (let [kw (try
+             (read-string s)
+             (catch Exception _ nil))]
+    ;; the reader reads only as far as the first form, so e.g. ":a,b" would read
+    ;; as :a, and "::a" would resolve against whatever namespace is current
+    (if (and (keyword? kw) (= s (str kw)))
+      kw
+      (throw (ex-info (str "Invalid query: keyword string '" s
+                           "' does not read as that keyword.")
+                      {::bad-string s})))))
 
 (def q-lex
   [[#"\?.+" coerce-symbol]

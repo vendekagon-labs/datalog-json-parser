@@ -81,6 +81,19 @@
       (is (some? ex) (pr-str s))
       (is (= s (::sut/bad-string (ex-data ex)))))))
 
+(deftest keywords-must-read-exactly
+  (doseq [s ["::foo" "::a/b" ":a,b" ":a;b" ":a(b)" ":a[b]" ":a\"b" ":a/b/"]]
+    (let [ex (try (sut/str-parse s) nil
+                  (catch clojure.lang.ExceptionInfo e e))]
+      (is (some? ex) (pr-str s))
+      (is (= s (::sut/bad-string (ex-data ex))) (pr-str s))))
+  (testing "in a query"
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (sut/parse-q {":find" ["?e"] ":where" [["?e" "::name" "?n"]]}))))
+  (testing "valid keywords still parse"
+    (doseq [s [":a" ":a/b" ":a.b/c-d" ":db/txInstant" ":a/b?" ":a-b_c/d!" ":a#b" ":a'b" ":1"]]
+      (is (= s (str (sut/str-parse s))) s))))
+
 (deftest find-specs
   (testing "pull pattern with nested map and ..."
     (is (= '{:find [(pull ?e [* {:a/ref [:a/name]} {:a/parent ...}])]}
