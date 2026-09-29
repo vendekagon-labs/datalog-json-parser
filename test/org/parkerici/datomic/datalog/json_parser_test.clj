@@ -110,6 +110,52 @@
     (is (= '{:find [?e] :where [[?e :a/b :foo]]}
            (sut/parse-q {":find" ["?e"] ":where" [["?e" ":a/b" ":foo"]]})))))
 
+(deftest join-vars
+  (testing "or-join with required bindings"
+    (is (= '{:find [?r] :where [[?a :artist/name "X"]
+                                [or-join [[?a] ?r]
+                                 [?r :release/artists ?a]
+                                 [?r :release/label ?a]]]}
+           (sut/parse-q {":find" ["?r"]
+                         ":where" [["?a" ":artist/name" "X"]
+                                   ["or-join" [["?a"] "?r"]
+                                    ["?r" ":release/artists" "?a"]
+                                    ["?r" ":release/label" "?a"]]]}))))
+  (testing "nested inside or / not"
+    (doseq [op ["or" "not"]]
+      (is (= [(symbol op) '[or-join [[?e] ?a] [?e :release/year ?a]]]
+             (second (:where (sut/parse-q {":find" ["?e"]
+                                           ":where" [["?e" ":a/b" "?a"]
+                                                     [op ["or-join" [["?e"] "?a"]
+                                                          ["?e" ":release/year" "?a"]]]]})))))))
+  (testing "multiple join vars stay a vector"
+    (doseq [op ["or-join" "not-join"]]
+      (let [parsed (sut/parse-q {":find" ["?a"]
+                                 ":where" [["?a" ":a/b" "?b"]
+                                           [op ["?a" "?b"] ["?a" ":a/c" "?b"]]]})
+            join-vars (second (second (:where parsed)))]
+        (is (= '[?a ?b] join-vars))
+        (is (vector? join-vars))))))
+
+(deftest malformed-alternative-clauses-throw
+  (doseq [clause [["or-join" "?a" ["?a" ":a/b" 1]]
+                  ["or-join" "?a" "?b" ["?a" ":a/b" "?b"]]
+                  ["or-join" [] ["?a" ":a/b" 1]]
+                  ["or-join" ["?a" ":a/b"] ["?a" ":a/b" 1]]
+                  ["or-join" [["?a"] ["?b"]] ["?a" ":a/b" "?b"]]
+                  ["or-join" [[] "?b"] ["?a" ":a/b" "?b"]]
+                  ["or-join" ["?a"]]
+                  ["not-join" [["?a"]] ["?a" ":a/b" 1]]
+                  ["not-join" "?a" ["?a" ":a/b" 1]]
+                  ["not"]
+                  ["or"]
+                  ["and"]]]
+    (let [ex (try (sut/parse-q {":find" ["?a"] ":where" [["?a" ":a/b" "?b"] clause]})
+                  nil
+                  (catch clojure.lang.ExceptionInfo e e))]
+      (is (some? ex) (pr-str clause))
+      (is (some? (:explain-data (ex-data ex))) (pr-str clause)))))
+
 (deftest find-specs
   (testing "pull pattern with nested map and ..."
     (is (= '{:find [(pull ?e [* {:a/ref [:a/name]} {:a/parent ...}])]}

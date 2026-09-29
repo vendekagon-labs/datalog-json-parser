@@ -145,6 +145,13 @@
                     \":where\": [[\"?r\", \":release/name\", \"Let It Be\"],
                                  [\"?r\", \":release/year\", \"?y\"],
                                  [[\"+\", \"?y\", 1], \"?next\"]]}"))))
+    (testing "or-join with required bindings"
+      (is (= #{["Blonde on Blonde"]}
+             (run "{\":find\": [\"?n\"],
+                    \":where\": [[\"?a\", \":artist/name\", \"Bob Dylan\"],
+                                 [\"or-join\", [[\"?a\"], \"?r\"],
+                                   [\"?r\", \":release/artists\", \"?a\"]],
+                                 [\"?r\", \":release/name\", \"?n\"]]}"))))
     (testing "or-join with and branches"
       (is (= #{["The Beatles"] ["Bob Dylan"]}
              (run "{\":find\": [\"?n\"],

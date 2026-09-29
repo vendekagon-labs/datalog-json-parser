@@ -86,6 +86,10 @@
                      vars (gen/vector-distinct gen-var {:min-elements 1 :max-elements 3})
                      clauses (gen/vector inner 1 3)]
              (into [op vars] clauses))
+           ;; or-join with required bindings, e.g. [[?a] ?b]
+           (gen/let [[required & other] (gen/vector-distinct gen-var {:min-elements 1 :max-elements 3})
+                     clauses (gen/vector inner 1 3)]
+             (into ['or-join (into [[required]] other)] clauses))
            (gen/let [clauses (gen/vector inner 1 3)]
              ;; and is only valid inside or / or-join
              ['or (into ['and] clauses) (into ['and] clauses)])]))
@@ -181,8 +185,9 @@
      (gen/fmap (fn [n] ['?a :artist/name n]) gen-artist-name)
      (gen/let [branches (gen/vector gen-or-branch 2 3)]
        (into '[or] branches))
-     (gen/let [branches (gen/vector gen-or-branch 1 3)]
-       (into '[or-join [?r]] branches))
+     (gen/let [branches (gen/vector gen-or-branch 1 3)
+               join-vars (gen/elements '[[?r] [[?r]]])]
+       (into ['or-join join-vars] branches))
      (gen/fmap (fn [cs] (into '[not] cs)) (gen/vector gen-release-fact 1 2))
      (gen/fmap (fn [cs] (into '[not-join [?r]] cs)) (gen/vector gen-release-fact 1 2))]))
 

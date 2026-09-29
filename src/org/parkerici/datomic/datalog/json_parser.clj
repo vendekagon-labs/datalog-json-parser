@@ -122,10 +122,25 @@
 (s/def ::clause-type
   (into #{} (keys clause-types)))
 
+(s/def ::join-vars
+  (s/and vector? (s/coll-of ::var :min-count 1)))
+
+;; e.g. [[?a ?b] ?c], where ?a and ?b must be bound before the or-join
+(s/def ::join-vars-with-required
+  (s/and vector?
+         (s/cat :required ::join-vars
+                :other (s/* ::var))))
+
 (s/def ::alternative-clause
-  (s/cat :clause-type ::clause-type
-         :vars (s/* ::var)
-         :clauses (s/+ ::clause)))
+  (s/or :or-join (s/cat :clause-type #{"or-join"}
+                        :vars (s/or :vars ::join-vars
+                                    :with-required ::join-vars-with-required)
+                        :clauses (s/+ ::clause))
+        :not-join (s/cat :clause-type #{"not-join"}
+                         :vars ::join-vars
+                         :clauses (s/+ ::clause))
+        :or-not-and (s/cat :clause-type #{"or" "not" "and"}
+                           :clauses (s/+ ::clause))))
 
 (defn unqualified-symbol-str?
   "True if v coerces to a symbol (as by clojure.core/symbol) without a namespace."
@@ -265,10 +280,11 @@
 (defn- resolve-conformed-alternative-clause
   "Resolves clause, given its value as conformed to ::alternative-clause."
   [clause conformed]
-  (let [{:keys [clause-type vars clauses]} conformed
+  (let [[_ {:keys [clause-type vars]}] conformed
         clause-symbol (get clause-types clause-type)
-        resolved-clauses (resolve-where-clauses
-                           (map (comp vec (partial s/unform ::clause)) clauses))]
+        ;; the nested clauses as given, rather than unformed from their
+        ;; conformed values, which would turn vectors inside them into lists
+        resolved-clauses (resolve-where-clauses (drop (if vars 2 1) clause))]
     (vec (if vars
            (concat [clause-symbol (second clause)] resolved-clauses)
            (concat [clause-symbol] resolved-clauses)))))
@@ -299,6 +315,9 @@
                               {:clause clause}))
 
               (not= alternative ::s/invalid) (resolve-conformed-alternative-clause clause alternative)
+              ;; throws, explaining why the clause doesn't conform
+              (and (sequential? clause)
+                   (contains? clause-types (first clause))) (resolve-alternative-clause clause)
               (s/valid? ::expression-clause clause) (resolve-where-expression clause)
               (s/valid? ::rule-expr clause) (resolve-rule-expr clause)
               :else clause)))
