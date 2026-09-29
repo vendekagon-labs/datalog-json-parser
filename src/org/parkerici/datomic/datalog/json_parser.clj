@@ -232,13 +232,20 @@
   (let [[expr binds] clause
         [f expr-spec] (get where-expressions (first expr))
         expr-w-fn (conj (rest expr) f)]
+    (when-not f
+      (throw (ex-info (str "Invalid :where expression clause in query: function "
+                           (pr-str (first expr))
+                           " is not in the where expression whitelist.")
+               {:clause clause
+                :expression-fn (first expr)
+                :whitelist (sort (keys where-expressions))})))
     (if (s/valid? expr-spec expr-w-fn)
       ;; drops binds portion if nil
       (into [] (remove nil? [expr-w-fn binds]))
       (throw (ex-info "Invalid :where expression clause in query"
                {:clause clause
                 :expression-fn f
-                :explain-data (s/explain-data expr-spec expr)})))))
+                :explain-data (s/explain-data expr-spec expr-w-fn)})))))
 
 (declare resolve-where-clauses)
 

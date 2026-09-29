@@ -99,7 +99,19 @@
                 nil
                 (catch clojure.lang.ExceptionInfo e e))]
     (is (some? ex))
-    (is (= '> (:expression-fn (ex-data ex))))))
+    (is (= '> (:expression-fn (ex-data ex))))
+    (is (some? (:explain-data (ex-data ex))))))
+
+(deftest non-whitelisted-where-fns-throw
+  (doseq [f ["launch-missiles" "clojure.core/eval" "java.lang.System/exit"]]
+    (let [ex (try (sut/parse-q {":find" ["?x"]
+                                ":where" [["?e" ":a/b" "?x"]
+                                          [[f "?x"]]]})
+                  nil
+                  (catch clojure.lang.ExceptionInfo e e))]
+      (is (some? ex) f)
+      (is (= f (:expression-fn (ex-data ex))))
+      (is (str/includes? (ex-message ex) "whitelist")))))
 
 (deftest invalid-rules-throw
   (doseq [bad [[["no-clauses" "?x"]]
