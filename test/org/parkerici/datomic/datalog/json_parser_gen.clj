@@ -103,7 +103,9 @@
        (list 'pull v pattern))]))
 
 (defn gen-query [opts]
-  (gen/let [find (gen/vector gen-find-elem 1 3)
+  (gen/let [find (gen/one-of [(gen/vector gen-find-elem 1 3)
+                              ;; find-scalar
+                              (gen/fmap #(vector % '.) gen-find-elem)])
             in (gen/vector gen-var 0 2)
             with (gen/vector gen-var 0 1)
             where (gen/vector (gen-clause opts) 1 4)]
@@ -197,10 +199,11 @@
   (gen/let [vars (gen/shuffle (keys valid-find-elems))
             n-find (gen/choose 1 3)
             with? gen/boolean
+            scalar? (gen/frequency [[3 (gen/return false)] [1 (gen/return true)]])
             find (apply gen/tuple (map #(gen/elements (valid-find-elems %))
-                                       (take n-find vars)))
+                                       (take (if scalar? 1 n-find) vars)))
             clauses (gen/vector gen-valid-clause 0 4)]
-    (cond-> {:find find
+    (cond-> {:find (if scalar? (conj find '.) find)
              :in '[$]
              :where (into base-clauses clauses)}
       ;; a :with var must not also appear in :find

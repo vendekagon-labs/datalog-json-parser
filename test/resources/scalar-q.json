@@ -1,0 +1,10 @@
+{
+    ":find" : ["?name", "."],
+    ":in" : ["$", "?artist"],
+    ":where" : [
+      ["?r", ":release/artists", "?a"],
+      ["?a", ":artist/name", "?artist"],
+      ["?r", ":release/year", 1966],
+      ["?r", ":release/name", "?name"]
+    ]
+}

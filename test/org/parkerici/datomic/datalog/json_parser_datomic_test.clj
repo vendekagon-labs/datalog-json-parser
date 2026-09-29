@@ -83,6 +83,7 @@
    "or-q" {:inputs (fn [db] [db])}
    "pull-q" {:inputs (fn [db] [db "ARG2"])}
    "re-q" {:inputs (fn [db] [db "beatles"])}
+   "scalar-q" {:inputs (fn [db] [db "Bob Dylan"])}
    ;; hard-coded entity id from a production db
    "single-clause-q" {:inputs (fn [db] [db]) :allow-empty true}
    "time-rule-q" {:inputs (fn [db] [db entity-at-rules "The Beatles"])}
@@ -126,6 +127,8 @@
     (is (= [[3]] (run (read-resource "with-q.json")))
         ":with keeps duplicate measurement values from collapsing")
     (is (= #{["TP53"]} (run (read-resource "missing-q.json"))))
+    (is (= "Blonde on Blonde" (run (read-resource "scalar-q.json") "Bob Dylan"))
+        "find-scalar returns a single value")
     (testing "comparison predicates"
       (is (= #{["Abbey Road"] ["Let It Be"]}
              (run "{\":find\": [\"?n\"],

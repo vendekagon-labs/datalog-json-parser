@@ -91,7 +91,18 @@
                  (sut/parse-q {":find" ["?g" ["count" "?e"] ["avg" "?v"]]}))))
   (testing "find-coll"
     (is (= '{:find [[?e ...]]}
-                 (sut/parse-q {":find" [["?e" "..."]]})))))
+                 (sut/parse-q {":find" [["?e" "..."]]}))))
+  (testing "find-scalar"
+    (is (= '{:find [?e .]}
+           (sut/parse-q {":find" ["?e" "."]})))
+    (is (symbol? (second (:find (sut/parse-q {":find" ["?e" "."]})))))
+    (is (= '{:find [(count ?e) .]}
+           (sut/parse-q {":find" [["count" "?e"] "."]})))
+    (is (= '{:find [(pull ?e [*]) .]}
+           (sut/parse-q {":find" [["pull" "?e" ["*"]] "."]}))))
+  (testing "a . elsewhere in a query is left as a string"
+    (is (= '{:find [?e] :where [[?e :a/b "."]]}
+           (sut/parse-q {":find" ["?e"] ":where" [["?e" ":a/b" "."]]})))))
 
 (deftest invalid-where-expressions-throw
   (let [ex (try (sut/parse-q {":find" ["?x"]

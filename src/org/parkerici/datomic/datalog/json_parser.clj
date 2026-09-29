@@ -49,9 +49,14 @@
          :var symbol?
          :pattern ::pattern))
 
+;; the . in a find-scalar spec, e.g. [:find ?e . ...]
+(s/def ::raw-scalar-marker
+  #{"."})
+
 (s/def ::resolvable-find-elem
   (s/or :pull-expr ::raw-pull-expr
-        :aggr-expr ::raw-aggregate-expr))
+        :aggr-expr ::raw-aggregate-expr
+        :scalar-marker ::raw-scalar-marker))
 
 (s/def ::fn-arg
   (complement coll?))
@@ -223,6 +228,7 @@
           (cond
             (s/valid? ::raw-aggregate-expr find-elem) (resolve-aggregate find-elem)
             (s/valid? ::raw-pull-expr find-elem) (resolve-pull find-elem)
+            (s/valid? ::raw-scalar-marker find-elem) '.
             :else find-elem))
         find-rel))
 
