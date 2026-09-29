@@ -50,3 +50,14 @@ Can be written in Python as:
 ```
 
 And serialized directly to plain JSON, then transformed into an edn query by the parser.
+
+## Running the tests
+
+```
+clojure -M:test
+```
+
+Besides the JSON/edn exemplar pairs in `test/resources`, the suite runs
+parsed queries and rules against an in-memory Datomic database seeded with
+synthetic data, and includes generative (test.check) tests. `com.datomic/peer`
+is a dependency of the `:test` alias only.
