@@ -291,6 +291,13 @@
           ;; which repeats the work at every level of nested or/not/and
           (let [alternative (s/conform ::alternative-clause clause)]
             (cond
+              (and (sequential? clause)
+                   (simple-keyword? (first clause)))
+              (throw (ex-info (str "Invalid :where clause in query: " (pr-str clause)
+                                   " starts with an unqualified keyword, which is neither"
+                                   " a rule name nor a (namespaced) entity ident.")
+                              {:clause clause}))
+
               (not= alternative ::s/invalid) (resolve-conformed-alternative-clause clause alternative)
               (s/valid? ::expression-clause clause) (resolve-where-expression clause)
               (s/valid? ::rule-expr clause) (resolve-rule-expr clause)

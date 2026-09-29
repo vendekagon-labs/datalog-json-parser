@@ -94,6 +94,22 @@
     (doseq [s [":a" ":a/b" ":a.b/c-d" ":db/txInstant" ":a/b?" ":a-b_c/d!" ":a#b" ":a'b" ":1"]]
       (is (= s (str (sut/str-parse s))) s))))
 
+(deftest clauses-starting-with-unqualified-keywords-throw
+  (doseq [q [{":find" ["?d"] ":where" [[":foo" ":db/doc" "?d"]]}
+             {":find" ["?e"] ":where" [["?e" ":a/b" "?v"] ["not" [":foo" ":a/b" "?v"]]]}
+             {":find" ["?e"] ":where" [["or" ["?e" ":a/b" 1] [":foo" ":a/c" "?e"]]]}]]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unqualified keyword"
+                          (sut/parse-q q))
+        (pr-str q)))
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unqualified keyword"
+                        (sut/parse-rules [[["r" "?d"] [":foo" ":db/doc" "?d"]]])))
+  (testing "namespaced idents can start a clause"
+    (is (= '{:find [?d] :where [[:my/ident :db/doc ?d]]}
+           (sut/parse-q {":find" ["?d"] ":where" [[":my/ident" ":db/doc" "?d"]]}))))
+  (testing "unqualified keywords elsewhere in a clause are fine"
+    (is (= '{:find [?e] :where [[?e :a/b :foo]]}
+           (sut/parse-q {":find" ["?e"] ":where" [["?e" ":a/b" ":foo"]]})))))
+
 (deftest find-specs
   (testing "pull pattern with nested map and ..."
     (is (= '{:find [(pull ?e [* {:a/ref [:a/name]} {:a/parent ...}])]}
