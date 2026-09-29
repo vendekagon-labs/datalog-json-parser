@@ -325,7 +325,8 @@
   (let [partially-parsed (parse-json-tree rule-form)]
     (if (s/valid? ::rule partially-parsed)
       (vec (for [[[rule-name & vars] & clauses] partially-parsed]
-             (vec (concat [(cons (symbol rule-name) vars)] clauses))))
+             (vec (concat [(cons (symbol rule-name) vars)]
+                          (resolve-where-clauses clauses)))))
       (throw (ex-info "Rule definition is not valid."
                {:rule rule-form
                 :explain-data (s/explain-data ::rule rule-form)})))))

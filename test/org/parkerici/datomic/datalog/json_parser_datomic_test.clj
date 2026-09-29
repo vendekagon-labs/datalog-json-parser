@@ -159,3 +159,30 @@
     (is (= #{["tweets"] ["fb"]}
            (d/q q *db* parsed-rules)
            (d/q q *db* edn-rules)))))
+
+(deftest parsed-rules-with-expressions-in-body
+  (let [q '[:find ?n :in $ % :where [?r :release/name ?n] (recent-beatles ?r)]
+        json-rules "[[[\"recent\", \"?r\"],
+                      [\"?r\", \":release/year\", \"?y\"],
+                      [[\">\", \"?y\", 1968]]],
+                     [[\"recent-beatles\", \"?r\"],
+                      [\"recent\", \"?r\"],
+                      [\"?r\", \":release/artists\", \"?a\"],
+                      [\"or\", [\"?a\", \":artist/name\", \"The Beatles\"],
+                               [\"?a\", \":artist/name\", \"The Beetles\"]],
+                      [\"not\", [\"?r\", \":release/name\", \"Abbey Road\"]]]]"]
+    (is (= '[[(recent ?r)
+              [?r :release/year ?y]
+              [(> ?y 1968)]]
+             [(recent-beatles ?r)
+              (recent ?r)
+              [?r :release/artists ?a]
+              [or [?a :artist/name "The Beatles"]
+                  [?a :artist/name "The Beetles"]]
+              [not [?r :release/name "Abbey Road"]]]]
+           (sut/parse-rules (json/read-str json-rules))))
+    (is (= #{["Let It Be"]}
+           (d/q q *db* (sut/parse-rules (json/read-str json-rules)))))
+    (testing "fns in rule bodies go through the where expression whitelist"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"whitelist"
+                            (sut/parse-rules [[["r" "?x"] [["launch-missiles" "?x"]]]]))))))
